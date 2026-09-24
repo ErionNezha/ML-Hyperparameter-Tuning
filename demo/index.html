@@ -1,0 +1,140 @@
+<!-- Created by Erion Nezha — © 2026 All rights reserved -->
+<!DOCTYPE html>
+<html lang="sq">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hyperparameter Tuning — Demo</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#0a0e14;color:#e6e6e6;font-family:'Segoe UI',system-ui,sans-serif;min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:20px}
+h1{color:#fff;font-size:1.6rem;margin:10px 0 4px}
+.sub{color:#9fb3c8;font-size:.88rem;margin-bottom:16px;max-width:720px;text-align:center;line-height:1.6}
+.wrap{width:100%;max-width:900px;display:flex;flex-direction:column;gap:16px}
+.panel{background:#0d1420;border:1px solid #00d4ff33;border-radius:14px;padding:20px}
+.panel h2{color:#7fdbff;font-size:1.05rem;margin-bottom:12px}
+.techs{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px}
+.tech{background:#0a0e14;border:1px solid #ffffff14;border-radius:10px;padding:12px 14px;cursor:pointer;transition:.15s}
+.tech:hover{border-color:#00d4ff66}
+.tech.sel{border-color:#00d4ff;background:#00d4ff0d}
+.tech b{color:#fff;font-size:.9rem}
+.tech p{color:#9fb3c8;font-size:.78rem;margin-top:6px;line-height:1.5}
+.controls{display:flex;gap:18px;flex-wrap:wrap;align-items:flex-end;margin-top:14px}
+.ctl label{color:#9fb3c8;font-size:.8rem;display:block;margin-bottom:6px}
+.ctl input[type=range]{width:200px;accent-color:#00d4ff}
+.ctl .val{color:#ffd75c;font-family:Consolas,monospace}
+button.run{background:#00d4ff;color:#04121a;border:none;padding:12px 26px;border-radius:8px;font-weight:700;cursor:pointer;font-size:.95rem}
+button.run:hover{background:#33e0ff}
+button.run:disabled{opacity:.4;cursor:not-allowed}
+.prog{height:10px;background:#1b263b;border-radius:6px;margin-top:14px;overflow:hidden;display:none}
+.prog div{height:100%;width:0;background:linear-gradient(90deg,#00d4ff,#7fdbff);transition:width .15s}
+#cv{width:100%;height:300px;display:block;margin-top:10px}
+.result{margin-top:10px;color:#9fb3c8;font-size:.9rem;line-height:1.7}
+.result b{color:#ffd75c}
+table{width:100%;border-collapse:collapse;font-size:.82rem;margin-top:6px}
+th,td{padding:9px 10px;text-align:left;border-bottom:1px solid #ffffff10}
+th{color:#7fdbff;font-weight:600}
+td{color:#9fb3c8}
+tr.hl td{color:#ffd75c;font-weight:600}
+footer{margin-top:18px;color:#5c6b7f;font-size:.8rem}
+footer strong{color:#9fb3c8}
+</style>
+</head>
+<body>
+<h1>⚙️ Hyperparameter Tuning</h1>
+<div class="sub">Version web interaktiv i notebook-ut <code>Hyper_Parameter_Tunning.ipynb</code> — teknikat e optimizimit mbi dataset-in <strong>Diabetes</strong> (768 rreshta, 8 features) me <strong>RandomForestClassifier</strong>. Rezultatet e grafikut janë simulim edukativ i kurbës reale të GridSearchCV.</div>
+<div class="wrap">
+  <div class="panel">
+    <h2>1️⃣ Zgjidh teknikën</h2>
+    <div class="techs" id="techs"></div>
+  </div>
+  <div class="panel">
+    <h2>2️⃣ Ekzekuto kërkimin (simulim)</h2>
+    <div class="controls">
+      <div class="ctl"><label>n_estimators: <span class="val" id="v-n">100</span></label><input type="range" id="r-n" min="10" max="200" step="10" value="100" oninput="document.getElementById('v-n').textContent=this.value"></div>
+      <div class="ctl"><label>max_depth: <span class="val" id="v-d">8</span></label><input type="range" id="r-d" min="2" max="20" step="1" value="8" oninput="document.getElementById('v-d').textContent=this.value"></div>
+      <button class="run" id="runBtn" onclick="runSearch()">▶ Ekzekuto GridSearchCV</button>
+    </div>
+    <div class="prog" id="prog"><div id="bar"></div></div>
+    <canvas id="cv"></canvas>
+    <div class="result" id="result">Shtyp "Ekzekuto GridSearchCV" për të parë kurbën e CV accuracy kundrejt n_estimators.</div>
+  </div>
+  <div class="panel">
+    <h2>📊 Krahasim i teknikave</h2>
+    <table>
+      <tr><th>Teknika</th><th>Shpejtësia</th><th>Cilësia</th><th>Kur përdoret</th></tr>
+      <tr class="hl"><td>GridSearchCV</td><td>🐌 E ngadaltë</td><td>⭐⭐⭐⭐</td><td>Hapësirë e vogël parametrash</td></tr>
+      <tr><td>RandomizedSearchCV</td><td>🚶 Mesatare</td><td>⭐⭐⭐⭐</td><td>Hapësirë e madhe, buxhet i kufizuar</td></tr>
+      <tr><td>Bayesian (Hyperopt)</td><td>🚶 Mesatare</td><td>⭐⭐⭐⭐⭐</td><td>Optimizim inteligjent, më pak prova</td></tr>
+      <tr><td>skopt (SMBO)</td><td>🚶 Mesatare</td><td>⭐⭐⭐⭐⭐</td><td>Si Bayesian, i integruar me sklearn</td></tr>
+      <tr><td>Optuna</td><td>🏃 E shpejtë</td><td>⭐⭐⭐⭐⭐</td><td>Pruning + dashboard vizual</td></tr>
+      <tr><td>TPOT (Genetic)</td><td>🐌 Shumë e ngadaltë</td><td>⭐⭐⭐⭐⭐</td><td>AutoML — gjen edhe pipeline-in</td></tr>
+    </table>
+  </div>
+</div>
+<footer>Krijuar nga <strong>Erion Nezha</strong> — © 2026</footer>
+<script>
+const TECHS=[
+ ["GridSearchCV","Provohen TË GJITHA kombinimet e grid-it me cross-validation. E saktë, por shpërthyese kombinatorike."],
+ ["RandomizedSearchCV","Kampionon rastësisht N kombinime — shumë më e shpejtë, pothuajse po aq e mirë."],
+ ["Bayesian Optimization","Modelon funksionin e scores dhe zgjedh me zgjuarsi pikën tjetër (Hyperopt)."],
+ ["skopt (SMBO)","Sequential Model-Based Optimization — versioni scikit-learn i Bayesian tuning."],
+ ["Optuna","Framework modern me pruning: ndalon provat e këqija herët. Shumë popullor."],
+ ["TPOT (Genetic)","Algoritme gjenetike që evoluojnë pipeline-in e plotë — AutoML i vërtetë."]
+];
+const box=document.getElementById('techs');
+TECHS.forEach((t,i)=>{
+  const d=document.createElement('div');d.className='tech'+(i===0?' sel':'');
+  d.innerHTML='<b>'+t[0]+'</b><p>'+t[1]+'</p>';
+  d.onclick=()=>{box.querySelectorAll('.tech').forEach(e=>e.classList.remove('sel'));d.classList.add('sel');};
+  box.appendChild(d);
+});
+// Kurbë realiste CV-accuracy (simulim i rezultatit të GridSearchCV mbi Diabetes + RandomForest)
+function acc(n,d){
+  const base=0.715+0.065*(1-Math.exp(-n/45));
+  const depthBonus=Math.min(0.02,Math.max(-0.03,(d-6)*0.008));
+  return Math.min(0.985,base+depthBonus);
+}
+function drawCurve(hiN,hiD){
+  const cv=document.getElementById('cv'),ctx=cv.getContext('2d');
+  const W=cv.width=cv.clientWidth*2,H=cv.height=600;
+  ctx.clearRect(0,0,W,H);
+  const pad={l:90,r:30,t:30,b:70};
+  const xs=[];for(let n=10;n<=200;n+=10)xs.push(n);
+  let ymin=0.68,ymax=0.85;
+  const X=n=>pad.l+(n-10)/(200-10)*(W-pad.l-pad.r);
+  const Y=a=>pad.t+(1-(a-ymin)/(ymax-ymin))*(H-pad.t-pad.b);
+  ctx.strokeStyle='#ffffff22';ctx.fillStyle='#5c6b7f';ctx.font='22px sans-serif';ctx.lineWidth=2;
+  for(let a=0.70;a<=0.84;a+=0.02){ctx.beginPath();ctx.moveTo(pad.l,Y(a));ctx.lineTo(W-pad.r,Y(a));ctx.stroke();ctx.fillText(a.toFixed(2),18,Y(a)+7);}
+  for(let n=10;n<=200;n+=40){ctx.fillText(n,X(n)-10,H-28);}
+  ctx.fillStyle='#9fb3c8';ctx.fillText('n_estimators',W/2-40,H-8);
+  ctx.strokeStyle='#00d4ff';ctx.lineWidth=5;ctx.beginPath();
+  xs.forEach((n,i)=>{const a=acc(n,hiD);i?ctx.lineTo(X(n),Y(a)):ctx.moveTo(X(n),Y(a));});
+  ctx.stroke();
+  xs.forEach(n=>{ctx.fillStyle='#00d4ff';ctx.beginPath();ctx.arc(X(n),Y(acc(n,hiD)),6,0,7);ctx.fill();});
+  const ba=acc(hiN,hiD);
+  ctx.strokeStyle='#ffd75c';ctx.lineWidth=3;ctx.setLineDash([10,8]);
+  ctx.beginPath();ctx.moveTo(X(hiN),Y(ba));ctx.lineTo(X(hiN),H-pad.b);ctx.stroke();ctx.setLineDash([]);
+  ctx.fillStyle='#ffd75c';ctx.beginPath();ctx.arc(X(hiN),Y(ba),12,0,7);ctx.fill();
+  ctx.fillStyle='#04121a';ctx.font='bold 20px sans-serif';ctx.fillText('★',X(hiN)-10,Y(ba)+7);
+}
+function runSearch(){
+  const n=+document.getElementById('r-n').value,d=+document.getElementById('r-d').value;
+  const btn=document.getElementById('runBtn'),prog=document.getElementById('prog'),bar=document.getElementById('bar');
+  btn.disabled=true;prog.style.display='block';
+  let p=0;
+  const iv=setInterval(()=>{
+    p+=4;bar.style.width=p+'%';
+    if(p>=100){clearInterval(iv);prog.style.display='none';btn.disabled=false;
+      drawCurve(n,d);
+      const a=acc(n,d);
+      document.getElementById('result').innerHTML=
+        '✅ <b>Best params:</b> n_estimators=<b>'+n+'</b>, max_depth=<b>'+d+'</b><br>'+
+        '📈 <b>Best CV accuracy:</b> <b>'+a.toFixed(4)+'</b> &nbsp;|&nbsp; Grid: 20 × 19 = 380 kombinime × 5-fold = 1900 fit-e';
+    }
+  },60);
+}
+window.addEventListener('resize',()=>drawCurve(+document.getElementById('r-n').value,+document.getElementById('r-d').value));
+</script>
+</body>
+</html>
